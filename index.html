@@ -472,6 +472,15 @@ function speakLine(text, onEnd) {
     onEnd();
   };
   speechSynthesis.speak(utter);
+  // watchdog: some browsers silently drop speech (autoplay policy, no
+  // voices installed) without ever firing onstart/onend/onerror — don't
+  // let narration hang forever waiting on an event that'll never come.
+  setTimeout(() => {
+    if (speechSynthesis.speaking || speechSynthesis.pending) return;
+    clearInterval(mouthInterval);
+    drawFace(false);
+    onEnd();
+  }, 4000);
 }
 
 const lines = [
@@ -500,10 +509,6 @@ function beginTransmission() {
 
 document.getElementById('begin-btn').onclick = beginTransmission;
 
-// Try to autostart immediately; if the browser blocks speech/audio without a
-// gesture, the Begin Transmission button stays visible as a fallback.
-beginTransmission();
-
 // ---------- Synthesized ambient soundtrack (Web Audio API) ----------
 let audioCtx, masterGain, musicStarted = false, musicNodes = [];
 
@@ -511,6 +516,7 @@ function startMusic() {
   if (musicStarted) return;
   musicStarted = true;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
   masterGain = audioCtx.createGain();
   masterGain.gain.value = 0.22;
   masterGain.connect(audioCtx.destination);
