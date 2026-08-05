@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dune: Choose Your House</title>
+<style>
+  :root {
+    --sand: #d9a860;
+    --sand-dark: #8a5a2b;
+    --night: #120c08;
+    --blood: #a12a2a;
+    --gold: #e8c47a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #3a2410 0%, var(--night) 70%);
+    color: var(--gold);
+    font-family: "Trajan Pro", "Cinzel", Georgia, serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+  }
+  h1 {
+    letter-spacing: 0.3rem;
+    text-transform: uppercase;
+    font-size: 2.2rem;
+    text-shadow: 0 0 20px rgba(232,196,122,0.5);
+  }
+  #narration {
+    max-width: 700px;
+    font-style: italic;
+    color: var(--sand);
+    margin-bottom: 2rem;
+    min-height: 2.5em;
+  }
+  #stage {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+    justify-content: center;
+  }
+  #mentor-face {
+    width: 180px;
+    height: 180px;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(0 0 18px rgba(232,196,122,0.35));
+    flex-shrink: 0;
+  }
+  #mentor-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.1rem;
+    text-transform: uppercase;
+    color: #b89b6e;
+    margin-top: 0.4rem;
+  }
+  #mentor-col { display: flex; flex-direction: column; align-items: center; }
+  #right-panel { display: flex; flex-direction: column; align-items: center; max-width: 640px; }
+  #begin-btn {
+    background: var(--sand-dark);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 0.7rem 1.3rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+    letter-spacing: 0.08rem;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+  #begin-btn:hover { background: var(--gold); color: var(--night); }
+  #houses {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .house-card {
+    width: 240px;
+    padding: 1.2rem;
+    border: 1px solid var(--sand-dark);
+    background: rgba(20,12,6,0.6);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .house-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 0 25px rgba(232,196,122,0.35);
+    border-color: var(--gold);
+  }
+  .house-card .sigil { font-size: 2.5rem; margin-bottom: 0.4rem; }
+  .house-card h2 { font-size: 1.1rem; margin: 0.3rem 0; }
+  .house-card p { font-size: 0.82rem; color: #cbb48f; line-height: 1.35; }
+
+  #game-screen { display: none; }
+  #banner {
+    font-size: 1.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15rem;
+    padding: 0.8rem 1.4rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    transition: all 0.25s;
+  }
+  .banner-idle { background: rgba(217,168,96,0.15); color: var(--gold); }
+  .banner-attack { background: var(--blood); color: #fff; animation: shake 0.4s infinite; }
+  .banner-victory { background: #2a6b2a; color: #fff; }
+  .banner-defeat { background: #3a2020; color: #e0a0a0; }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  #controls button, #houses-hint button {
+    background: var(--sand-dark);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 0.6rem 1.1rem;
+    margin: 0.4rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    letter-spacing: 0.05rem;
+    text-transform: uppercase;
+  }
+  #controls button:hover { background: var(--gold); color: var(--night); }
+
+  #log {
+    margin-top: 1.5rem;
+    max-width: 600px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 0.8rem;
+    color: #b89b6e;
+    text-align: left;
+    border-top: 1px solid var(--sand-dark);
+    padding-top: 0.6rem;
+  }
+  #log div { margin-bottom: 0.25rem; }
+
+  #audio-note {
+    margin-top: 2rem;
+    font-size: 0.7rem;
+    color: #7a6142;
+    max-width: 500px;
+  }
+  #mute-btn {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: 1px solid var(--sand-dark);
+    color: var(--gold);
+    padding: 0.4rem 0.7rem;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 100;
+  }
+
+  #cinema-screen {
+    position: fixed;
+    inset: 0;
+    background: #000 url('assets/desert-sky.jpg') center bottom / cover no-repeat;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    z-index: 60;
+    perspective: 900px;
+  }
+  #cinema-stage {
+    transform-style: preserve-3d;
+    transition: transform 10s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transform: rotateX(68deg) scale(0.4) translateY(160px) translateZ(-260px);
+    box-shadow: 0 0 120px 40px rgba(0,0,0,0.9);
+  }
+  #cinema-stage.zoomed {
+    transform: rotateX(6deg) scale(1.04) translateY(0) translateZ(0);
+  }
+  #cinema-caption {
+    position: fixed;
+    bottom: 2rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: var(--gold);
+    font-size: 0.85rem;
+    letter-spacing: 0.15rem;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(0,0,0,0.9);
+    z-index: 61;
+  }
+  #map-container {
+    margin: 1rem auto;
+    display: flex;
+    justify-content: center;
+    padding: 1.2rem;
+    border-radius: 10px;
+    background: url('assets/desert-sky.jpg') center bottom / cover no-repeat;
+  }
+  canvas#map-canvas {
+    display: block;
+    background: transparent;
+    image-rendering: pixelated;
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    border: 1px solid #1c1c14;
+  }
+</style>
+</head>
+<body>
+
+<button id="mute-btn">🔊 Mute</button>
+
+<div id="intro-screen">
+  <h1>Dune</h1>
+  <div id="stage">
+    <div id="mentor-col">
+      <canvas id="mentor-face" width="32" height="32"></canvas>
+      <div id="mentor-label"></div>
+    </div>
+    <div id="right-panel">
+      <div id="narration">A mentor stirs from the sand... click below.</div>
+      <button id="begin-btn">▶ Begin Transmission</button>
+      <div id="houses"></div>
+    </div>
+  </div>
+</div>
+
+<div id="cinema-screen">
+  <div id="cinema-stage"></div>
+  <div id="cinema-caption">Deploying to Arrakis...</div>
+</div>
+
+<div id="game-screen">
+  <h1 id="chosen-title"></h1>
+  <div id="banner" class="banner-idle">Awaiting orders</div>
+  <div id="map-container"></div>
+  <div id="controls">
+    <button id="btn-attack">Trigger Attack</button>
+    <button id="btn-victory">Resolve Victory</button>
+    <button id="btn-defeat">Resolve Defeat</button>
+  </div>
+  <div id="log"></div>
+</div>
+
+<div id="audio-note">
+  🎵 Background score: synthesized ambient "Spice Theme" (generated live via Web Audio API —
+  no copyrighted Dune score is used). Click any house to start playback.
+</div>
+
+<script>
+// ---------- Lore (sourced from fictionhorizon.com house family-tree article) ----------
+const HOUSES = {
+  atreides: {
+    name: "House Atreides",
+    sigil: "🦅",
+    color: "#4a7fbf",
+    desc: "Descended from Leto I, Paul, Alia, and Leto II. Ruled Caladan with honor before Emperor Shaddam IV lured them to Arrakis. Paul rose as the Kwisatz Haderach. A bloodline built on governance, warfare, and prescient burden."
+  },
+  harkonnen: {
+    name: "House Harkonnen",
+    sigil: "💀",
+    color: "#a12a2a",
+    desc: "Vladimir, Feyd-Rautha, and Abulurd. Ancient Earth roots, said to trace to Finland. Rose through ruthless spice profiteering and the oppression of the Fremen. The House was extinguished in the Holy War — though its blood lingers in Bene Gesserit lines."
+  },
+  fremen: {
+    name: "The Fremen",
+    sigil: "🐛",
+    color: "#c98a2b",
+    desc: "No noble bloodline, no throne — the desert itself forged them. Worm-riders and water-hoarders of Arrakis, hardened by Harkonnen oppression into the empire's most feared guerrilla fighters."
+  }
+};
+
+let chosenHouseKey = null;
+
+const narrationEl = document.getElementById('narration');
+const housesEl = document.getElementById('houses');
+const introScreen = document.getElementById('intro-screen');
+const gameScreen = document.getElementById('game-screen');
+const bannerEl = document.getElementById('banner');
+const logEl = document.getElementById('log');
+const titleEl = document.getElementById('chosen-title');
+
+function typeNarration(text) {
+  narrationEl.textContent = text;
+}
+
+function renderHouses() {
+  housesEl.innerHTML = '';
+  Object.entries(HOUSES).forEach(([key, house]) => {
+    const card = document.createElement('div');
+    card.className = 'house-card';
+    card.style.borderColor = house.color;
+    card.innerHTML = `
+      <div class="sigil">${house.sigil}</div>
+      <h2 style="color:${house.color}">${house.name}</h2>
+      <p>${house.desc}</p>
+    `;
+    card.onclick = () => chooseHouse(key);
+    housesEl.appendChild(card);
+  });
+}
+
+function chooseHouse(key) {
+  chosenHouseKey = key;
+  startMusic();
+  introScreen.style.display = 'none';
+  const house = HOUSES[key];
+  titleEl.textContent = `${house.sigil} ${house.name}`;
+  titleEl.style.color = house.color;
+  setBanner(`${house.name} was chosen`, 'banner-idle');
+  addLog(`${house.name} rises. Let the sands remember.`);
+  playCinematicZoom(key, () => {
+    gameScreen.style.display = 'block';
+    mapContainerEl.appendChild(mapCanvas);
+    addLog('Forces deployed to the battlefield.');
+  });
+}
+
+function setBanner(text, cls) {
+  bannerEl.textContent = text;
+  bannerEl.className = cls;
+}
+
+function addLog(text) {
+  const line = document.createElement('div');
+  const t = new Date().toLocaleTimeString();
+  line.textContent = `[${t}] ${text}`;
+  logEl.prepend(line);
+}
+
+document.getElementById('btn-attack').onclick = () => {
+  const house = HOUSES[chosenHouseKey];
+  setBanner(`${house.name.toUpperCase()} UNDER ATTACK`, 'banner-attack');
+  addLog(`${house.name} is under attack!`);
+  speakLine(`${house.name} is under attack! To arms!`, () => {});
+};
+
+document.getElementById('btn-victory').onclick = () => {
+  const house = HOUSES[chosenHouseKey];
+  setBanner(`${house.name.toUpperCase()} VICTORIOUS`, 'banner-victory');
+  addLog(`${house.name} claims victory.`);
+  speakLine(`${house.name} is victorious! The spice must flow.`, () => {});
+};
+
+document.getElementById('btn-defeat').onclick = () => {
+  const house = HOUSES[chosenHouseKey];
+  setBanner(`${house.name.toUpperCase()} DEFEATED`, 'banner-defeat');
+  addLog(`${house.name} has fallen.`);
+  speakLine(`${house.name} has fallen. The desert remembers.`, () => {});
+};
+
+// ---------- Mentor (random house-colored pixel face) ----------
+const MENTORS = {
+  fremen:    { skin: '#6b4423', shade: '#3b2410', eyeGlow: '#e8c47a', label: 'Fremen Naib', pitch: 0.85 },
+  harkonnen: { skin: '#c23b3b', shade: '#6e1c1c', eyeGlow: '#ffb0b0', label: 'Harkonnen Mentat', pitch: 0.55 },
+  atreides:  { skin: '#3f7fd1', shade: '#22456e', eyeGlow: '#cfe6ff', label: 'Atreides Herald', pitch: 1.15 }
+};
+const mentorKeys = Object.keys(MENTORS);
+const mentorKey = mentorKeys[Math.floor(Math.random() * mentorKeys.length)];
+const mentor = MENTORS[mentorKey];
+document.getElementById('mentor-label').textContent = mentor.label;
+
+const faceCanvas = document.getElementById('mentor-face');
+const fctx = faceCanvas.getContext('2d');
+fctx.imageSmoothingEnabled = false;
+
+function drawFace(mouthOpen) {
+  fctx.clearRect(0, 0, 32, 32);
+  // hood / shadow
+  fctx.fillStyle = mentor.shade;
+  fctx.fillRect(6, 4, 20, 24);
+  // face
+  fctx.fillStyle = mentor.skin;
+  fctx.fillRect(9, 8, 14, 15);
+  // eyes
+  fctx.fillStyle = mentor.eyeGlow;
+  fctx.fillRect(11, 14, 4, 4);
+  fctx.fillRect(17, 14, 4, 4);
+  fctx.fillStyle = '#101010';
+  fctx.fillRect(12, 15, 2, 2);
+  fctx.fillRect(18, 15, 2, 2);
+  // mouth
+  fctx.fillStyle = '#101010';
+  if (mouthOpen) {
+    fctx.fillRect(13, 21, 6, 5);
+  } else {
+    fctx.fillRect(13, 22, 6, 2);
+  }
+}
+drawFace(false);
+
+// ---------- Speech-synced narration ----------
+let mouthState = false;
+let mouthInterval = null;
+
+function speakLine(text, onEnd) {
+  if (!('speechSynthesis' in window)) {
+    setTimeout(onEnd, 1600);
+    return;
+  }
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.95;
+  utter.pitch = mentor.pitch;
+  utter.onstart = () => {
+    mouthInterval = setInterval(() => {
+      mouthState = !mouthState;
+      drawFace(mouthState);
+    }, 120);
+  };
+  utter.onend = () => {
+    clearInterval(mouthInterval);
+    drawFace(false);
+    onEnd();
+  };
+  utter.onerror = () => {
+    clearInterval(mouthInterval);
+    drawFace(false);
+    onEnd();
+  };
+  speechSynthesis.speak(utter);
+}
+
+const lines = [
+  "Long ago, three powers ruled the sands of Dune...",
+  "House Atreides. House Harkonnen. The Fremen.",
+  "Choose your house."
+];
+
+function playNarration(index) {
+  if (index >= lines.length) {
+    renderHouses();
+    return;
+  }
+  typeNarration(lines[index]);
+  speakLine(lines[index], () => playNarration(index + 1));
+}
+
+let narrationStarted = false;
+function beginTransmission() {
+  if (narrationStarted) return;
+  narrationStarted = true;
+  document.getElementById('begin-btn').style.display = 'none';
+  startMusic();
+  playNarration(0);
+}
+
+document.getElementById('begin-btn').onclick = beginTransmission;
+
+// Try to autostart immediately; if the browser blocks speech/audio without a
+// gesture, the Begin Transmission button stays visible as a fallback.
+beginTransmission();
+
+// ---------- Synthesized ambient soundtrack (Web Audio API) ----------
+let audioCtx, masterGain, musicStarted = false, musicNodes = [];
+
+function startMusic() {
+  if (musicStarted) return;
+  musicStarted = true;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.18;
+  masterGain.connect(audioCtx.destination);
+
+  // Low drone (desert wind / worm rumble)
+  const drone = audioCtx.createOscillator();
+  drone.type = 'sawtooth';
+  drone.frequency.value = 55; // A1
+  const droneFilter = audioCtx.createBiquadFilter();
+  droneFilter.type = 'lowpass';
+  droneFilter.frequency.value = 220;
+  const droneGain = audioCtx.createGain();
+  droneGain.gain.value = 0.5;
+  drone.connect(droneFilter).connect(droneGain).connect(masterGain);
+  drone.start();
+  musicNodes.push(drone);
+
+  // Slow evolving pad, second interval up (fifth)
+  const pad = audioCtx.createOscillator();
+  pad.type = 'triangle';
+  pad.frequency.value = 82.5; // E2
+  const padGain = audioCtx.createGain();
+  padGain.gain.value = 0.25;
+  pad.connect(padGain).connect(masterGain);
+  pad.start();
+  musicNodes.push(pad);
+
+  // LFO to slowly wobble the pad for an "epic desert" feel
+  const lfo = audioCtx.createOscillator();
+  lfo.frequency.value = 0.07;
+  const lfoGain = audioCtx.createGain();
+  lfoGain.gain.value = 6;
+  lfo.connect(lfoGain).connect(pad.frequency);
+  lfo.start();
+  musicNodes.push(lfo);
+
+  // Sparse high percussive "spice" pings
+  function ping() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 440 + Math.random() * 220;
+    const g = audioCtx.createGain();
+    g.gain.value = 0.0001;
+    osc.connect(g).connect(masterGain);
+    const now = audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.06, now + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+    osc.start(now);
+    osc.stop(now + 1.3);
+    setTimeout(ping, 3000 + Math.random() * 4000);
+  }
+  setTimeout(ping, 2000);
+}
+
+document.getElementById('mute-btn').onclick = (e) => {
+  if (!audioCtx) return;
+  if (masterGain.gain.value > 0) {
+    masterGain.gain.value = 0;
+    e.target.textContent = '🔇 Unmute';
+  } else {
+    masterGain.gain.value = 0.18;
+    e.target.textContent = '🔊 Mute';
+  }
+};
+
+// ============================================================
+// Hex-tile battlefield map — colors sampled directly from the
+// reference screenshot (dune_map_units_reference_one_pic.png)
+// ============================================================
+const PAL = {
+  sandA: '#b47838', sandB: '#c07c3c', sandC: '#ac6c34',
+  rockA: '#7c7c60', rockB: '#64644c', rockC: '#50503c', rockD: '#38382c', rockE: '#1c1c14',
+  spiceA: '#c46c28', spiceB: '#b85c20', spiceC: '#a84818',
+  clusterA: '#5c3808', clusterB: '#4c3004', clusterC: '#402400', clusterHi: '#7a4a10',
+  concreteHi: '#c0c0d8', concrete: '#9c9cb8', concreteMid: '#7c7c98', concreteDark: '#404058',
+  glow: '#3a5cff', glowCore: '#0e1550'
+};
+
+const HEX = 22;               // hex "radius" (center to corner)
+const HEX_W = HEX * 1.5;      // horizontal spacing between columns
+const HEX_H = Math.sqrt(3) * HEX; // vertical spacing between rows
+const COLS = 22, ROWS = 15;
+const MAP_W = Math.ceil(HEX_W * COLS + HEX);
+const MAP_H = Math.ceil(HEX_H * (ROWS + 0.5) + HEX);
+
+function hexCenter(col, row) {
+  const x = HEX + HEX_W * col;
+  const y = HEX_H * (row + 0.5) + (col % 2 ? HEX_H / 2 : 0);
+  return [x, y];
+}
+function hash2(a, b) {
+  const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+
+// ---- terrain field (approximating the reference map's layout) ----
+const rockBlobs = [
+  [3,10,5.5],[6,11,4],[9,9,3.5],[13,8,4],[16,4,5],[19,3,4.5],
+  [11,3,3],[8,5,3],[14,11,4],[17,9,3.5],[4,4,2.5]
+];
+const spiceBlobs = [ [12,6,1.6],[9,3,1.4],[17,9,1.7],[5,5,1.1],[19,12,1.3] ];
+const clusterBlobs = [ [10,8,1],[15,11,1.2],[7,6,0.8],[18,6,1] ];
+
+function blobHit(list, col, row) {
+  for (const [bc,br,r] of list) {
+    const dc = col - bc, dr = row - br;
+    if (dc*dc + dr*dr <= r*r) return true;
+  }
+  return false;
+}
+
+function terrainAt(col, row) {
+  if (blobHit(clusterBlobs, col, row)) return 'cluster';
+  if (blobHit(rockBlobs, col, row)) return 'rock';
+  if (blobHit(spiceBlobs, col, row)) return 'spice';
+  return 'sand';
+}
+
+const terrain = [];
+for (let r = 0; r < ROWS; r++) {
+  terrain[r] = [];
+  for (let c = 0; c < COLS; c++) terrain[r][c] = terrainAt(c, r);
+}
+
+// ---- structures & units (hand-placed, mirrors the reference screenshot) ----
+const BUILDINGS = [
+  { col: 2, row: 9,  w: 2, h: 3, type: 'refinery' },
+  { col: 5, row: 9,  w: 2, h: 3, type: 'turbine'  },
+  { col: 2, row: 12, w: 2, h: 3, type: 'turbine'  },
+  { col: 16, row: 1, w: 2, h: 3, type: 'enemy'    }
+];
+const WALLS = (() => {
+  const w = [];
+  for (let c = 1; c <= 8; c++) { w.push([c,8]); w.push([c,14]); }
+  for (let r = 8; r <= 14; r++) { w.push([1,r]); w.push([8,r]); }
+  return w.filter(([c,r]) => c>=0 && c<COLS && r>=0 && r<ROWS);
+})();
+const UNITS = [
+  { col: 4,  row: 7,  type: 'tank',    team: 'player' },
+  { col: 5,  row: 7,  type: 'bigtank', team: 'player' },
+  { col: 6,  row: 13, type: 'truck',   team: 'player' },
+  { col: 3,  row: 13, type: 'tank',    team: 'player' },
+  { col: 18, row: 4,  type: 'tank',    team: 'enemy'  },
+  { col: 19, row: 5,  type: 'tank',    team: 'enemy'  },
+  { col: 20, row: 3,  type: 'bigtank', team: 'enemy'  },
+  { col: 20, row: 11, type: 'worm',    team: 'neutral' }
+];
+
+// force ground truth at exact unit/structure locations: buildings & walls
+// always stand on rock, sandworms only ever surface on open sand
+for (const b of BUILDINGS) {
+  for (let dr = 0; dr < b.h; dr++)
+    for (let dc = 0; dc < b.w; dc++) terrain[b.row + dr][b.col + dc] = 'rock';
+}
+for (const [c, r] of WALLS) terrain[r][c] = 'rock';
+for (const u of UNITS) {
+  if (u.type === 'worm') terrain[u.row][u.col] = 'sand';
+}
+
+const mapCanvas = document.createElement('canvas');
+mapCanvas.id = 'map-canvas';
+mapCanvas.width = MAP_W;
+mapCanvas.height = MAP_H;
+const mctx = mapCanvas.getContext('2d');
+const mapContainerEl = document.getElementById('map-container');
+const cinemaStage = document.getElementById('cinema-stage');
+const cinemaScreen = document.getElementById('cinema-screen');
+
+function hexPath(ctx, cx, cy, size) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const ang = (Math.PI / 180) * (60 * i - 30);
+    const px = cx + size * Math.cos(ang);
+    const py = cy + size * Math.sin(ang);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+function drawHex(ctx, col, row) {
+  const [cx, cy] = hexCenter(col, row);
+  const t = terrain[row][col];
+  const n = hash2(col, row);
+  let fill;
+  if (t === 'rock') {
+    fill = n < 0.33 ? PAL.rockA : n < 0.66 ? PAL.rockB : PAL.rockC;
+  } else if (t === 'cluster') {
+    fill = n < 0.5 ? PAL.rockB : PAL.rockC;
+  } else {
+    fill = n < 0.5 ? PAL.sandA : PAL.sandB;
+  }
+  hexPath(ctx, cx, cy, HEX - 0.6);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = t === 'sand' ? PAL.sandC : PAL.rockE;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  if (t === 'spice') {
+    // mottled rust-colored stain over the sand, not a smooth glowing orb
+    hexPath(ctx, cx, cy, HEX - 0.6);
+    ctx.save();
+    ctx.clip();
+    for (let i = 0; i < 6; i++) {
+      const a = hash2(col * 3 + i, row) * Math.PI * 2;
+      const d = hash2(row * 5 + i, col) * HEX * 0.6;
+      const bx = cx + Math.cos(a) * d, by = cy + Math.sin(a) * d;
+      const r = HEX * (0.35 + hash2(col + i, row * 2) * 0.35);
+      const g = ctx.createRadialGradient(bx, by, 0, bx, by, r);
+      const c = i % 3 === 0 ? PAL.spiceA : i % 3 === 1 ? PAL.spiceB : PAL.spiceC;
+      g.addColorStop(0, c);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = PAL.spiceC;
+    for (let i = 0; i < 5; i++) {
+      const sx = cx + (hash2(col + i * 2, row) - 0.5) * HEX * 1.2;
+      const sy = cy + (hash2(row + i * 2, col) - 0.5) * HEX * 1.2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+  if (t === 'cluster') {
+    ctx.fillStyle = PAL.clusterB;
+    for (let i = 0; i < 4; i++) {
+      const a = hash2(col + i, row) * Math.PI * 2;
+      const d = hash2(row, col + i) * HEX * 0.5;
+      const rx = cx + Math.cos(a) * d, ry = cy + Math.sin(a) * d;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 4 + hash2(col, row + i) * 3, 0, Math.PI * 2);
+      ctx.fillStyle = i % 2 ? PAL.clusterA : PAL.clusterC;
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fillStyle = PAL.clusterHi;
+    ctx.fill();
+  }
+}
+
+function bbox(col, row, w, h) {
+  const [x0, y0] = hexCenter(col, row);
+  const [x1, y1] = hexCenter(col + w - 1, row + h - 1);
+  return { x: x0 - HEX, y: y0 - HEX, w: (x1 - x0) + HEX * 2, h: (y1 - y0) + HEX * 2 };
+}
+
+function drawBuilding(ctx, b, t) {
+  const { x, y, w, h } = bbox(b.col, b.row, b.w, b.h);
+  ctx.fillStyle = PAL.concreteDark;
+  ctx.fillRect(x + 2, y + 3, w, h);
+  ctx.fillStyle = b.type === 'enemy' ? PAL.concreteMid : PAL.concrete;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = PAL.concreteHi;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+
+  if (b.type === 'refinery' || b.type === 'turbine') {
+    // two rows of silo caps, matching the 2x3 refinery block in the reference art
+    const cols = 2, rows = 3;
+    const cw = w / cols, rh = h / rows;
+    for (let ri = 0; ri < rows; ri++) {
+      for (let ci = 0; ci < cols; ci++) {
+        const sx = x + cw * ci + cw / 2;
+        const sy = y + rh * ri + rh / 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.min(cw, rh) * 0.32, 0, Math.PI * 2);
+        ctx.fillStyle = PAL.concreteMid;
+        ctx.fill();
+        ctx.strokeStyle = PAL.concreteDark;
+        ctx.stroke();
+      }
+    }
+    if (b.type === 'turbine') {
+      const cx = x + w / 2, cy = y + h / 2;
+      const pulse = 0.55 + 0.45 * Math.sin(t / 260);
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, Math.min(w, h) * 0.5);
+      g.addColorStop(0, `rgba(90,120,255,${0.9 * pulse})`);
+      g.addColorStop(0.5, `rgba(40,60,200,${0.5 * pulse})`);
+      g.addColorStop(1, 'rgba(10,15,60,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.min(w, h) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.fillStyle = PAL.glowCore;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fillStyle = PAL.glow;
+      ctx.fill();
+    }
+  } else if (b.type === 'enemy') {
+    ctx.fillStyle = '#a12a2a';
+    ctx.fillRect(x + w * 0.35, y + h * 0.15, w * 0.3, h * 0.2);
+  }
+}
+
+function drawWall(col, row) {
+  const [cx, cy] = hexCenter(col, row);
+  const s = HEX * 0.7;
+  mctx.fillStyle = PAL.concreteDark;
+  mctx.fillRect(cx - s / 2 + 2, cy - s / 2 + 3, s, s);
+  mctx.fillStyle = PAL.concrete;
+  mctx.fillRect(cx - s / 2, cy - s / 2, s, s);
+  mctx.strokeStyle = PAL.concreteHi;
+  mctx.strokeRect(cx - s / 2, cy - s / 2, s, s);
+  // crenellations
+  mctx.fillStyle = PAL.concreteMid;
+  for (const dx of [-s/2, -s/6, s/6]) mctx.fillRect(cx + dx, cy - s / 2 - 3, s/4, 4);
+}
+
+function teamColor(team, houseKey) {
+  if (team === 'enemy') return houseKey === 'harkonnen' ? '#4a7fbf' : '#a12a2a';
+  if (team === 'player') return houseKey ? HOUSES[houseKey].color : '#4a7fbf';
+  return '#c9a866';
+}
+
+function drawUnit(ctx, u, houseKey) {
+  const [cx, cy] = hexCenter(u.col, u.row);
+  const col = teamColor(u.team, houseKey);
+  if (u.type === 'tank' || u.type === 'bigtank') {
+    const big = u.type === 'bigtank';
+    const bw = big ? 20 : 14, bh = big ? 14 : 10;
+    ctx.fillStyle = '#4a5440';
+    ctx.fillRect(cx - bw/2, cy - bh/2, bw, bh);
+    ctx.fillStyle = col;
+    ctx.fillRect(cx - bw/2, cy - bh/2, bw, 3);
+    ctx.fillStyle = '#3c4636';
+    ctx.beginPath();
+    ctx.arc(cx, cy, bh * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#1c1c14';
+    ctx.lineWidth = big ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + bw * 0.55, cy);
+    ctx.stroke();
+  } else if (u.type === 'truck') {
+    ctx.fillStyle = '#a68c4a';
+    ctx.fillRect(cx - 9, cy - 6, 18, 12);
+    ctx.fillStyle = '#6e5a2e';
+    ctx.fillRect(cx - 9, cy - 6, 6, 12);
+    ctx.fillStyle = '#1c1c14';
+    [[-8,-7],[8,-7],[-8,7],[8,7]].forEach(([dx,dy]) => {
+      ctx.beginPath(); ctx.arc(cx+dx, cy+dy, 2, 0, Math.PI*2); ctx.fill();
+    });
+  } else if (u.type === 'worm') {
+    ctx.strokeStyle = '#c9a866';
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - 30, cy + 10);
+    ctx.quadraticCurveTo(cx - 10, cy - 18, cx + 30, cy + 6);
+    ctx.stroke();
+    ctx.strokeStyle = '#8a6a3a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 30, cy + 10);
+    ctx.quadraticCurveTo(cx - 10, cy - 18, cx + 30, cy + 6);
+    ctx.stroke();
+  }
+}
+
+let cinemaTime0 = 0;
+function renderMap(now) {
+  mctx.clearRect(0, 0, MAP_W, MAP_H);
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) drawHex(mctx, c, r);
+  for (const b of BUILDINGS) drawBuilding(mctx, b, now);
+  for (const [c, r] of WALLS) drawWall(c, r);
+  for (const u of UNITS) drawUnit(mctx, u, chosenHouseKey);
+}
+
+function mapLoop(now) {
+  renderMap(now);
+  requestAnimationFrame(mapLoop);
+}
+requestAnimationFrame(mapLoop);
+
+function playCinematicZoom(houseKey, onDone) {
+  cinemaScreen.style.display = 'flex';
+  cinemaStage.innerHTML = '';
+  cinemaStage.appendChild(mapCanvas);
+  cinemaStage.classList.remove('zoomed');
+  // force reflow so the starting transform applies before we animate
+  void cinemaStage.offsetHeight;
+  requestAnimationFrame(() => cinemaStage.classList.add('zoomed'));
+  setTimeout(() => {
+    cinemaScreen.style.display = 'none';
+    onDone();
+  }, 10000);
+}
+</script>
+</body>
+</html>
