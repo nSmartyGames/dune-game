@@ -752,6 +752,25 @@ mapCanvas.id = 'map-canvas';
 mapCanvas.width = MAP_W;
 mapCanvas.height = MAP_H;
 const mctx = mapCanvas.getContext('2d');
+
+// tile textures cropped directly from the reference screenshot
+// (dune_map_units_reference_one_pic.png) — real pixels, not procedural fills
+const TILE_SRC = {
+  sand: 'assets/tiles/sand.png',
+  rock: 'assets/tiles/rock.png',
+  spice: 'assets/tiles/spice.png',
+  cluster: 'assets/tiles/cluster.png'
+};
+const tileImg = {};
+const tilePattern = {};
+Object.entries(TILE_SRC).forEach(([key, src]) => {
+  const img = new Image();
+  img.onload = () => {
+    tileImg[key] = img;
+    if (key !== 'cluster') tilePattern[key] = mctx.createPattern(img, 'repeat');
+  };
+  img.src = src;
+});
 const mapContainerEl = document.getElementById('map-container');
 const map3dWrapper = document.getElementById('map-3d-wrapper');
 const cinemaStage = document.getElementById('cinema-stage');
@@ -773,16 +792,13 @@ function drawHex(ctx, col, row) {
   const [cx, cy] = hexCenter(col, row);
   const t = terrain[row][col];
   const n = hash2(col, row);
-  let fill;
-  if (t === 'rock') {
-    fill = n < 0.33 ? PAL.rockA : n < 0.66 ? PAL.rockB : PAL.rockC;
-  } else if (t === 'cluster') {
-    fill = n < 0.5 ? PAL.rockB : PAL.rockC;
-  } else {
-    fill = n < 0.5 ? PAL.sandA : PAL.sandB;
-  }
+  const baseIsRock = (t === 'rock' || t === 'cluster');
+  const pattern = baseIsRock ? tilePattern.rock : tilePattern.sand;
+  const fallback = baseIsRock
+    ? (n < 0.33 ? PAL.rockA : n < 0.66 ? PAL.rockB : PAL.rockC)
+    : (n < 0.5 ? PAL.sandA : PAL.sandB);
   hexPath(ctx, cx, cy, HEX - 0.6);
-  ctx.fillStyle = fill;
+  ctx.fillStyle = pattern || fallback;
   ctx.fill();
   ctx.strokeStyle = t === 'sand' ? PAL.sandC : PAL.rockE;
   ctx.globalAlpha = 0.5;
@@ -791,51 +807,23 @@ function drawHex(ctx, col, row) {
   ctx.globalAlpha = 1;
 
   if (t === 'spice') {
-    // mottled rust-colored stain over the sand, not a smooth glowing orb
+    // real spice-patch texture cropped straight from the reference screenshot
     hexPath(ctx, cx, cy, HEX - 0.6);
-    ctx.save();
-    ctx.clip();
-    for (let i = 0; i < 6; i++) {
-      const a = hash2(col * 3 + i, row) * Math.PI * 2;
-      const d = hash2(row * 5 + i, col) * HEX * 0.6;
-      const bx = cx + Math.cos(a) * d, by = cy + Math.sin(a) * d;
-      const r = HEX * (0.35 + hash2(col + i, row * 2) * 0.35);
-      const g = ctx.createRadialGradient(bx, by, 0, bx, by, r);
-      const c = i % 3 === 0 ? PAL.spiceA : i % 3 === 1 ? PAL.spiceB : PAL.spiceC;
-      g.addColorStop(0, c);
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(bx, by, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 0.9;
-    ctx.fillStyle = PAL.spiceC;
-    for (let i = 0; i < 5; i++) {
-      const sx = cx + (hash2(col + i * 2, row) - 0.5) * HEX * 1.2;
-      const sy = cy + (hash2(row + i * 2, col) - 0.5) * HEX * 1.2;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 1.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    ctx.restore();
+    ctx.fillStyle = tilePattern.spice || PAL.spiceB;
+    ctx.fill();
   }
-  if (t === 'cluster') {
+}
+
+function drawClusterStamp(ctx, bc, br, r) {
+  const img = tileImg.cluster;
+  const [cx, cy] = hexCenter(bc, br);
+  const rad = r * HEX_W * 1.35 + HEX;
+  if (img) {
+    ctx.drawImage(img, cx - rad, cy - rad, rad * 2, rad * 2);
+  } else {
     ctx.fillStyle = PAL.clusterB;
-    for (let i = 0; i < 4; i++) {
-      const a = hash2(col + i, row) * Math.PI * 2;
-      const d = hash2(row, col + i) * HEX * 0.5;
-      const rx = cx + Math.cos(a) * d, ry = cy + Math.sin(a) * d;
-      ctx.beginPath();
-      ctx.arc(rx, ry, 4 + hash2(col, row + i) * 3, 0, Math.PI * 2);
-      ctx.fillStyle = i % 2 ? PAL.clusterA : PAL.clusterC;
-      ctx.fill();
-    }
     ctx.beginPath();
-    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-    ctx.fillStyle = PAL.clusterHi;
+    ctx.arc(cx, cy, rad * 0.6, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -978,6 +966,7 @@ function renderMap(now) {
   mctx.clearRect(0, 0, MAP_W, MAP_H);
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++) drawHex(mctx, c, r);
+  for (const [bc, br, r] of clusterBlobs) drawClusterStamp(mctx, bc, br, r);
   for (const b of BUILDINGS) drawBuilding(mctx, b, now);
   for (const [c, r] of WALLS) drawWall(c, r);
   for (const u of UNITS) drawUnit(mctx, u, chosenHouseKey);
